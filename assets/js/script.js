@@ -1,119 +1,137 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // 台灣縣市列表
-    const cities = [
-        '台北市', '新北市', '桃園市', '台中市', '台南市', '高雄市',
-        '基隆市', '新竹市', '新竹縣', '苗栗縣', '彰化縣', '南投縣',
-        '雲林縣', '嘉義市', '嘉義縣', '屏東縣', '宜蘭縣', '花蓮縣', '台東縣'
-    ];
+// script.js
 
-    // 初始化 Google Maps 服務
-    const directionsService = new google.maps.DirectionsService();
+// 获取页面元素的引用
+let originInput = document.getElementById('origin');
+let destinationInput = document.getElementById('destination');
+let vehicleTypeInput = document.getElementById('vehicleType');
+let fuelConsumptionInput = document.getElementById('fuelConsumption');
+let consumptionUnitSpan = document.getElementById('consumptionUnit');
+let fuelPriceInput = document.getElementById('fuelPrice');
+let priceUnitSpan = document.getElementById('priceUnit');
+let peopleInput = document.getElementById('people');
+let calculateBtn = document.getElementById('calculateBtn');
 
-    // 填充下拉選單
-    const startSelect = document.getElementById('start');
-    const endSelect = document.getElementById('end');
-    
-    cities.forEach(city => {
-        startSelect.add(new Option(city, city));
-        endSelect.add(new Option(city, city));
-    });
+let totalDistanceInput = document.getElementById('totalDistance');
+let tollFeeInput = document.getElementById('tollFee');
+let energyCostInput = document.getElementById('energyCost');
+let totalCostInput = document.getElementById('totalCost');
 
-    // 預設值設定
-    const defaults = {
-        gas: { efficiency: 15.3, price: 32, unit: 'km/L' },
-        hybrid: { efficiency: 22.6, price: 32, unit: 'km/L' },
-        electric: { efficiency: 6.1, price: 5, unit: 'km/度' }
+// 页面加载时设置默认值
+window.onload = function() {
+    setDefaultValues();
+};
+
+// 当车辆种类变化时，更新默认值
+vehicleTypeInput.addEventListener('change', function() {
+    setDefaultValues();
+});
+
+// 设置默认值函数
+function setDefaultValues() {
+    let vehicleType = vehicleTypeInput.value;
+    if (vehicleType === 'gasoline') {
+        fuelConsumptionInput.value = 15.3;
+        consumptionUnitSpan.innerText = 'km/L';
+        fuelPriceInput.value = 32;
+        priceUnitSpan.innerText = '元/L';
+    } else if (vehicleType === 'hybrid') {
+        fuelConsumptionInput.value = 22.6;
+        consumptionUnitSpan.innerText = 'km/L';
+        fuelPriceInput.value = 32;
+        priceUnitSpan.innerText = '元/L';
+    } else if (vehicleType === 'electric') {
+        fuelConsumptionInput.value = 6.1;
+        consumptionUnitSpan.innerText = 'km/度';
+        fuelPriceInput.value = 5;
+        priceUnitSpan.innerText = '元/度';
+    }
+}
+
+// 点击计算按钮时的事件处理器
+calculateBtn.addEventListener('click', function() {
+    let origin = originInput.value;
+    let destination = destinationInput.value;
+
+    if (!origin || !destination) {
+        alert('請選擇起點和終點');
+        return;
+    }
+
+    getDistance(origin, destination);
+});
+
+// 获取路线距离的函数
+function getDistance(origin, destination) {
+    let directionsService = new google.maps.DirectionsService();
+
+    let request = {
+        origin: origin,
+        destination: destination,
+        travelMode: 'DRIVING',
+        provideRouteAlternatives: false,
+        avoidTolls: false
     };
 
-    // 計算兩點間的路線距離
-    function calculateRoute() {
-        const start = startSelect.value + ', Taiwan';
-        const end = endSelect.value + ', Taiwan';
+    directionsService.route(request, function(result, status) {
+        if (status === 'OK') {
+            let route = result.routes[0];
 
-        const request = {
-            origin: start,
-            destination: end,
-            travelMode: google.maps.TravelMode.DRIVING
-        };
+            let totalDistance = route.legs[0].distance.value; // 单位：公尺
 
-        directionsService.route(request, (result, status) => {
-            if (status === google.maps.DirectionsStatus.OK) {
-                const distance = result.routes[0].legs[0].distance.value / 1000;
-                document.getElementById('distance').textContent = distance.toFixed(1);
-                calculateCosts();
-            } else {
-                console.error('路線計算錯誤:', status);
-                alert('無法計算路線距離，請稍後再試');
-            }
-        });
-    }
+            // 将公尺转换为公里，保留两位小数
+            totalDistance = (totalDistance / 1000).toFixed(2);
 
-    // 更新車輛類型相關設定
-    function updateVehicleSettings() {
-        const vehicleType = document.getElementById('vehicleType').value;
-        const settings = defaults[vehicleType];
-        
-        document.getElementById('efficiency').value = settings.efficiency;
-        document.getElementById('energyPrice').value = settings.price;
-        document.getElementById('efficiencyUnit').textContent = settings.unit;
-        document.getElementById('priceUnit').textContent = 
-            vehicleType === 'electric' ? '元/度' : '元/L';
-    }
+            totalDistanceInput.value = totalDistance;
 
-    // 計算過路費
-    function calculateTollFee(distance) {
-        if (distance <= 20) return 0;
-        if (distance <= 50) return Math.floor((distance - 20) * 1.2);
-        if (distance <= 100) return 36 + Math.floor((distance - 50) * 1.2);
-        if (distance <= 200) return 96 + Math.floor((distance - 100) * 1.2);
-        if (distance <= 300) return 216 + Math.floor((distance - 200) * 0.9);
-        return 306 + Math.floor((distance - 300) * 0.9);
-    }
+            // 计算过路费
+            let tollFee = calculateTollFee(parseFloat(totalDistance));
+            tollFeeInput.value = tollFee;
 
-    // 計算總費用
-    function calculateCosts() {
-        const distance = parseFloat(document.getElementById('distance').textContent) || 0;
-        const efficiency = parseFloat(document.getElementById('efficiency').value) || 0;
-        const energyPrice = parseFloat(document.getElementById('energyPrice').value) || 0;
-        const passengers = parseInt(document.getElementById('passengerCount').value) || 1;
-
-        if (distance && efficiency && energyPrice && passengers) {
-            const tollFee = calculateTollFee(distance);
-            const energyConsumption = distance / efficiency;
-            const energyCost = energyConsumption * energyPrice;
-            const totalCost = tollFee + energyCost;
-            const perPersonCost = totalCost / passengers;
-
-            // 更新顯示結果
-            document.getElementById('tollFee').textContent = Math.round(tollFee);
-            document.getElementById('energyCost').textContent = Math.round(energyCost);
-            document.getElementById('totalCost').textContent = Math.round(totalCost);
-            document.getElementById('perPersonCost').textContent = Math.round(perPersonCost);
+            // 计算能源费用和每人应付费用
+            calculateCosts(parseFloat(totalDistance), tollFee);
+        } else {
+            alert('無法取得路線資訊：' + status);
         }
+    });
+}
+
+// 计算过路费的函数
+function calculateTollFee(x) {
+    let y = 0;
+    if (x <= 20) {
+        y = 0;
+    } else if (x <= 50) {
+        y = Math.floor((x - 20) * 1.2);
+    } else if (x <= 100) {
+        y = 36 + Math.floor((x - 50) * 1.2);
+    } else if (x <= 200) {
+        y = 96 + Math.floor((x - 100) * 1.2);
+    } else if (x <= 300) {
+        y = 216 + Math.floor((x - 200) * 0.9);
+    } else if (x <= 400) {
+        y = 306 + Math.floor((x - 300) * 0.9);
+    }
+    return y;
+}
+
+// 计算能源费用和每人应付费用的函数
+function calculateCosts(totalDistance, tollFee) {
+    let vehicleType = vehicleTypeInput.value;
+    let fuelConsumption = parseFloat(fuelConsumptionInput.value);
+    let fuelPrice = parseFloat(fuelPriceInput.value);
+    let people = parseInt(peopleInput.value);
+
+    let energyCost = 0;
+
+    if (vehicleType === 'gasoline' || vehicleType === 'hybrid' || vehicleType === 'electric') {
+        energyCost = (totalDistance / fuelConsumption) * fuelPrice;
     }
 
-    // 事件監聽器設定
-    document.getElementById('vehicleType').addEventListener('change', () => {
-        updateVehicleSettings();
-        calculateCosts();
-    });
+    // 显示能源费用，保留两位小数
+    energyCostInput.value = energyCost.toFixed(2);
 
-    ['efficiency', 'energyPrice', 'passengerCount'].forEach(id => {
-        document.getElementById(id).addEventListener('input', calculateCosts);
-    });
+    // 计算每人应付费用
+    let totalCostPerPerson = (energyCost + tollFee) / people;
 
-    [startSelect, endSelect].forEach(select => {
-        select.addEventListener('change', calculateRoute);
-    });
-
-    // 初始化設定
-    updateVehicleSettings();
-    
-    // 如果有選擇起點和終點，立即計算路線
-    if (startSelect.value && endSelect.value) {
-        calculateRoute();
-    }
-
-    // 設定預設值
-    document.getElementById('passengerCount').value = 1;
-});
+    totalCostInput.value = totalCostPerPerson.toFixed(2);
+}
