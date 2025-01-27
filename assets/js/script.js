@@ -83,8 +83,16 @@ function getDistance(origin, destination) {
 
             totalDistanceInput.value = totalDistance;
 
+            // 添加 tollDistance 变量，令其为 totalDistance 减去 3
+            let tollDistance = totalDistance - 3;
+
+            // 确保 tollDistance 不为负数
+            if (tollDistance < 0) {
+                tollDistance = 0;
+            }
+
             // 计算过路费
-            let tollFee = calculateTollFee(parseFloat(totalDistance));
+            let tollFee = calculateTollFee(parseFloat(tollDistance));
             tollFeeInput.value = tollFee;
 
             // 计算能源费用和每人应付费用
@@ -94,6 +102,8 @@ function getDistance(origin, destination) {
         }
     });
 }
+
+
 
 // 计算过路费的函数
 function calculateTollFee(x) {
